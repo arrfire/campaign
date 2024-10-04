@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdVisor - Web3 Integration</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.5.2/web3.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        button, input { margin: 10px 0; padding: 10px; }
+        #status { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>AdVisor - Web3 Integration</h1>
+    <button id="connectWallet">Connect Wallet</button>
+    <div>
+        <input type="text" id="campaignName" placeholder="Campaign Name">
+        <input type="number" id="campaignBudget" placeholder="Budget (in MATIC)">
+        <button id="createCampaign">Create Campaign</button>
+    </div>
+    <button id="getCampaignCount">Get Campaign Count</button>
+    <div id="status"></div>
+
+    <script>
+        const contractAddress = '0x57204F030C17805De25Bf722038e9ad9B3E8969D';
+        const contractABI = [
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "uint256",
+                        "name": "id",
+                        "type": "uint256"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "budget",
+                        "type": "uint256"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "address",
+                        "name": "owner",
+                        "type": "address"
+                    }
+                ],
+                "name": "CampaignCreated",
+                "type": "event"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "campaigns",
+                "outputs": [
+                    {
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "budget",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "owner",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "string",
+                        "name": "_name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "_budget",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "createCampaign",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getCampaignCount",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        let web3;
+        let contract;
+        let userAccount;
+
+        async function connectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    web3 = new Web3(window.ethereum);
+                    contract = new web3.eth.Contract(contractABI, contractAddress);
+                    const accounts = await web3.eth.getAccounts();
+                    userAccount = accounts[0];
+                    updateStatus('Wallet connected: ' + userAccount);
+                } catch (error) {
+                    updateStatus('Failed to connect wallet: ' + error.message);
+                }
+            } else {
+                updateStatus('MetaMask is not installed');
+            }
+        }
+
+        async function createCampaign() {
+            if (!contract || !userAccount) {
+                updateStatus('Please connect your wallet first');
+                return;
+            }
+            const name = document.getElementById('campaignName').value;
+            const budget = document.getElementById('campaignBudget').value;
+            if (!name || !budget) {
+                updateStatus('Please enter a campaign name and budget');
+                return;
+            }
+            try {
+                const budgetInWei = web3.utils.toWei(budget, 'ether');
+                const result = await contract.methods.createCampaign(name, budgetInWei).send({ from: userAccount });
+                updateStatus('Campaign created: ' + result.transactionHash);
+            } catch (error) {
+                updateStatus('Failed to create campaign: ' + error.message);
+            }
+        }
+
+        async function getCampaignCount() {
+            if (!contract) {
+                updateStatus('Please connect your wallet first');
+                return;
+            }
+            try {
+                const count = await contract.methods.getCampaignCount().call();
+                updateStatus('Total campaigns: ' + count);
+            } catch (error) {
+                updateStatus('Failed to get campaign count: ' + error.message);
+            }
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').innerText = message;
+        }
+
+        document.getElementById('connectWallet').addEventListener('click', connectWallet);
+        document.getElementById('createCampaign').addEventListener('click', createCampaign);
+        document.getElementById('getCampaignCount').addEventListener('click', getCampaignCount);
+    </script>
+</body>
+</html>
